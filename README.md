@@ -2,7 +2,7 @@
 
 ```vugrad``` is a miniature autodiff system. Think Pytorch or Tensorflow, but designed to be easy to understand (and not suitable for production).
 
-There are many pakages like this (see below for a list). Here are vugrads specifics:
+There are many packages like this (see below for a list). Here are vugrads specifics:
  * Built on numpy, which is the only requirement.
  * Tensor-valued: all operations are on numpy arrays.
  * Eager execution: computation graphs are built on the fly.
