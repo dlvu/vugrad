@@ -272,3 +272,56 @@ class Module:
         :return: A list of TensorNode objects
         """
         pass
+
+
+class Add(Op):
+    """
+    Op for element-wise matrix addition.
+    """
+    @staticmethod
+    def forward(context, a, b):
+        assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
+        return a + b
+
+    @staticmethod
+    def backward(context, go):
+        return go, go
+
+
+class Multiply(Op):
+    """
+    Op for element-wise matrix multiplication.
+    """
+    @staticmethod
+    def forward(context, a, b):
+        assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
+
+        context['a'] = a
+        context['b'] = b
+
+        return a * b
+
+    @staticmethod
+    def backward(context, go):
+        a, b = context['a'], context['b']
+
+        return go * b, go * a
+        # -- note the reversal: the local gradient wrt a is b and the local graident wrt b is a.
+
+
+class MatrixMultiply(Op):
+    """
+    Op for matrix multiplication.
+    """
+    @staticmethod
+    def forward(context, a, b):
+        context['a'] = a
+        context['b'] = b
+
+        return np.matmul(a, b)
+
+    @staticmethod
+    def backward(context, go):
+        a, b = context['a'], context['b']
+
+        return np.matmul(go, b.T), np.matmul(a.T, go)

@@ -1,4 +1,4 @@
-from .ops import Log, Select, Sum
+from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid
 import numpy as np
 
 """
@@ -68,3 +68,26 @@ def celoss(outputs, targets):
     return Sum.do_forward(per_instance) * -1.0
 
     # -- To see how this loss derives from the entropy, consult the slides.
+
+def sigmoid(x):
+    """
+    Wrap the sigmoid op in a funciton (just for symmetry with the softmax).
+
+    :param x:
+    :return:
+    """
+    return Sigmoid.do_forward(x)
+
+def softmax(x):
+    """
+    Applies a row-wise softmax to a matrix
+
+    NB: Softmax is almost never computed like this in more serious settings. It's much better
+        to start from logits and use (a variant of) the logsumexp trick, returning
+        `log(softmax(x))`.
+
+    :param x: A matrix.
+    :return: A matrix of the same size as x, with normalized rows.
+    """
+
+    return Normalize.do_forward(Exp.do_forward(x))

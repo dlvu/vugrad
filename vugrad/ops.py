@@ -4,40 +4,11 @@ import numpy as np
 
 """
 This module contains a selection of useful Ops with forward and backward implementations.
+
+Note that three ops (Add, Multiply, MatrixMultiply) are implemented in the core module to avoid circular imports.
+
 """
 
-class Add(Op):
-    """
-    Op for element-wise matrix addition.
-    """
-    @staticmethod
-    def forward(context, a, b):
-        assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
-        return a + b
-
-    @staticmethod
-    def backward(context, go):
-        return go, go
-
-class Multiply(Op):
-    """
-    Op for element-wise matrix multiplication.
-    """
-    @staticmethod
-    def forward(context, a, b):
-        assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
-
-        context['a'] = a
-        context['b'] = b
-
-        return a * b
-
-    @staticmethod
-    def backward(context, go):
-        a, b = context['a'], context['b']
-
-        return go * b, go * a
-        # -- note the reversal: the local gradient wrt a is b and the local graident wrt b is a.
 
 class Log(Op):
     """
@@ -56,6 +27,21 @@ class Log(Op):
         x = context['x']
 
         return go / x
+
+class Exp(Op):
+    """
+    Op for natural exponent
+    """
+    @staticmethod
+    def forward(context, x):
+
+        context['expd'] = np.exp(x)
+        return context['expd']
+
+    @staticmethod
+    def backward(context, go):
+
+        return go * context['expd']
 
 class Sum(Op):
     """
@@ -76,22 +62,24 @@ class Sum(Op):
 
         return np.full(shape=xsize, fill_value=go)
 
-class MatrixMultiply(Op):
+class Normalize(Op):
     """
-    Op for matrix multiplication.
+    Op that normalizes a matrix along the rows
     """
     @staticmethod
-    def forward(context, a, b):
-        context['a'] = a
-        context['b'] = b
+    def forward(context, x):
 
-        return np.matmul(a, b)
+        sumd = x.sum(axis=1, keepdims=True)
+        context['x'], context['sumd'] = x, sumd
+
+        return x / sumd
 
     @staticmethod
     def backward(context, go):
-        a, b = context['a'], context['b']
 
-        return np.matmul(go, b.T), np.matmul(a.T, go)
+        x, sumd = context['x'], context['sumd']
+
+        return (go / sumd) - ((go * x)/(sumd * sumd)).sum(axis=1, keepdims=True)
 
 class BatchMM(Op):
     """
@@ -155,33 +143,6 @@ class Expand(Op):
         dim = context['dim']
 
         return goutput.sum(axis=dim, keepdims=True)
-
-class Softmax(Op):
-    """
-    Op for softmax operation on a
-    """
-
-    @staticmethod
-    def forward(context, input):
-
-        batch_size, num_classes = input.shape
-
-
-
-        expd  = np.exp(input) # exponentiate
-        normd = expd / expd.sum(axis=1, keepdims=True) # normalize
-
-        context['normd'], context['expd'] = normd, expd
-
-        return normd
-
-
-    @staticmethod
-    def backward(context, goutput):
-
-        normd, expd = context['normd'], context['expd']
-
-        return goutput * expd + expd * (goutput * expd).sum(axis=1, keepdims=True)
 
 class Select(Op):
     """

@@ -1,6 +1,7 @@
 from .core import Module, TensorNode
 
 from .ops import *
+from .functions import *
 
 class Linear(Module):
     """
@@ -78,11 +79,11 @@ class MLP(Module):
         hidden = self.layer1(input)
 
         # non-linearity
-        hidden = Sigmoid.do_forward(hidden)
+        hidden = sigmoid(hidden)
 
         # second layer
         output = self.layer2(hidden)
-        output = Softmax.do_forward(output)
+        output = softmax(output)
 
         return output
 
