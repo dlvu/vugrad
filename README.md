@@ -9,7 +9,9 @@ There are many packages like this (see below for a list). Here are vugrads speci
  
 ```vugrad``` was built for the [Deep Learning course](http://dlvu.github.io) at the Vrije Universiteit Amsterdam. 
 
-## Similar packages 
+The MNIST loader was taken from [this repository](https://github.com/hsjeong5/MNIST-for-Numpy) by  [Hyeonseok Jung](https://github.com/hsjeong5).  
+
+## Similar packages  
 
 The first package to do something like this was probably [micrograd](https://github.com/karpathy/micrograd) By Andrej Karpathy, followed quickly by [minigrad](https://github.com/kennysong/minigrad) by Kenny Song. These are both scalar-valued, which mean they don't illustrate how tensors are handled.
 

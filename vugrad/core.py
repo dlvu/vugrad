@@ -273,6 +273,8 @@ class Module:
         """
         pass
 
+## The most basic Ops. These are defined here so we can make utility functions for them in the TensorNode class. The
+#  rest are defined in ops.py
 
 class Add(Op):
     """
@@ -306,7 +308,7 @@ class Multiply(Op):
         a, b = context['a'], context['b']
 
         return go * b, go * a
-        # -- note the reversal: the local gradient wrt a is b and the local graident wrt b is a.
+        # -- note the reversal: the local gradient wrt a is b and the local gradient wrt b is a.
 
 
 class MatrixMultiply(Op):

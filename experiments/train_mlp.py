@@ -16,18 +16,18 @@ parser.add_argument('-D', '--dataset',
 parser.add_argument('-b', '--batch-size',
                 dest='batch_size',
                 help='The batch size (how many instances to use for a single forward/backward pass).',
-                default=16, type=int)
+                default=128, type=int)
 
 parser.add_argument('-e', '--epochs',
                 dest='epochs',
                 help='The number of epochs (complete passes over the complete training data).',
-                default=50, type=int)
+                default=20, type=int)
 
 parser.add_argument('-l', '--learning-rate',
                 dest='lr',
                 help='The learning rate. That is, a scalar that determines the size of the steps taken by the '
-                     'gradient descent algorithm.',
-                default=0.00000001, type=float)
+                     'gradient descent algorithm. 0.1 works well for synth, 0.0001 works well for MNIST.',
+                default=0.1, type=float)
 
 args = parser.parse_args()
 
@@ -35,7 +35,7 @@ args = parser.parse_args()
 if args.data == 'synth':
     (xtrain, ytrain), (xval, yval), num_classes = vg.load_synth()
 elif args.data == 'mnist':
-    pass
+    (xtrain, ytrain), (xval, yval), num_classes = vg.load_mnist(final=False, flatten=True)
 else:
     raise Exception(f'Dataset {args.data} not recognized.')
 
@@ -52,10 +52,27 @@ mlp = vg.MLP(input_size=num_features, output_size=num_classes)
 n, m = xtrain.shape
 b = args.batch_size
 
-print('## Starting training')
+print('\n## Starting training')
+
+cl = '...'
 
 for epoch in range(args.epochs):
-    print(f'epoch {epoch:03}', end='')
+
+    print(f'epoch {epoch:03}')
+
+    if epoch % 1 == 0:
+        ## Compute validation accuracy
+
+        o = mlp(vg.TensorNode(xval))
+        oval = o.value
+
+        predictions = np.argmax(oval, axis=1)
+        num_correct = (predictions == yval).sum()
+        acc = num_correct / yval.shape[0]
+
+        o.clear() # gc the computation graph
+
+        print(f'       accuracy: {acc:.4}')
 
     cl = 0.0 # running sum of the training loss
 
@@ -100,5 +117,4 @@ for epoch in range(args.epochs):
         # ... and delete the parts of the computation graph we don't need to remember.
         loss.clear()
 
-    print(f' loss {cl:.4}')
-
+    print(f'   running loss: {cl:.4}')

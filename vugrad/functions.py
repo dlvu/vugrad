@@ -1,5 +1,8 @@
 from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid
+from .mnist import init, load
+
 import numpy as np
+import os
 
 """
 A set of utility functions
@@ -30,15 +33,30 @@ def load_synth(num_train=60_000, num_val=10_000):
     return (x[:num_train, :], y[:num_train]), (x[num_train:, :], y[num_train:]), 2
 
 
-def load_mnist(final=False):
+def load_mnist(final=False, flatten=True):
     """
     Load the MNIST data
 
-    :param final:
+    :param final: If true, return the canonical test/train split. If false, split some validation data from the training
+       data and keep the test data hidden.
+    :param flatten:
     :return:
     """
 
-    pass
+    if not os.path.isfile('mnist.pkl'):
+        init()
+
+    xtrain, ytrain, xtest, ytest = load()
+    xtl, xsl = xtrain.shape[0], xtest.shape[0]
+
+    if flatten:
+        xtrain = xtrain.reshape(xtl, -1)
+        xtest  = xtest.reshape(xsl, -1)
+
+    if not final: # return the flattened images
+        return (xtrain[:-5000], ytrain[:-5000]), (xtrain[-5000:], ytrain[-5000:]), 10
+
+    return (xtrain, ytrain), (xtest, ytest), 10
 
 def celoss(outputs, targets):
     """
@@ -91,3 +109,4 @@ def softmax(x):
     """
 
     return Normalize.do_forward(Exp.do_forward(x))
+
