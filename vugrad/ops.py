@@ -183,7 +183,7 @@ class Select(Op):
 
         return res
 
-## The Ops below this line
+## The Ops below this line aren't used in the course exercises. You may ignore them.
 
 class Squeeze(Op):
     """

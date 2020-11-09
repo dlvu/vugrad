@@ -14,6 +14,11 @@ class TensorNode:
     """
 
     def __init__(self, value : np.ndarray, source=None):
+        """
+
+        :param value: A numpy array.
+        :param source: The opnode that created this tensor node. Leave this blank if you create a TensorNode manually.
+        """
 
         self.value = value   # the raw value that this node holds
         self.source = source # the OpNode that produced this Node
@@ -36,10 +41,9 @@ class TensorNode:
 
     def zero_grad(self):
         """
-        Set the gradient to zero for this node and any below it.
+        Set the gradient to zero for this node and any nodes below it.
         :return:
         """
-
 
         self.grad.fill(0.0)
 
@@ -51,7 +55,6 @@ class TensorNode:
         Disconnects the computation graph. We simply remove the connections between the Tensor nodes and the Op nodes.
         By doing this, anything that is not referenced by anything else gets removed by the garbage collector. The nodes
         that represent parameters are still connected to their modules, so they won't be cleared.
-
         :return:
         """
 
@@ -60,8 +63,25 @@ class TensorNode:
 
         self.source = None
 
-    ## For common ops, we add utility methods to the Node object
+    def backward(self, start=True):
+        """
+        Start (or continue) the backpropagation from this node. This will fail if the node holds anything other than a scalar value.
 
+        :return:
+        """
+        # print(f'Backward in TensorNode with shape {self.size()} and source op {None if self.source is None else self.source.op}.')
+
+        if start:
+            if  self.value.squeeze().shape != ():
+                raise Exception('backward() can only start from a scalar node.')
+
+            self.grad = np.ones_like(self.value)
+
+        # -- the gradient of the loss node is 1, with the same shape as the loss node itself
+        if self.source is not None:
+            self.source.backward()
+
+    ## For common ops, we add utility methods to the Node object
     def __add__(self, other):
         if type(other) == float:
             other = TensorNode(np.asarray(other))
@@ -76,25 +96,6 @@ class TensorNode:
 
     def matmul(self, other):
         return MatrixMultiply.do_forward(self, other)
-
-    def backward(self, start=True):
-        """
-        Start the backpropagation from this node. This will fail if the node holds anything other than a scalar value.
-
-        :return:
-        """
-        # print(f'Backward in TensorNode with shape {self.size()} and source op {None if self.source is None else self.source.op}.')
-
-        if start:
-            if  self.value.squeeze().shape != ():
-                raise Exception('backward() can only start from a scalar node.')
-
-            self.grad = np.ones_like(self.value)
-
-        # -- the gradient of the loss node is 1, with the same shape as the loss node itself
-
-        if self.source is not None:
-            self.source.backward()
 
     def __str__(self):
         return f'TensorNode[size {self.size()}, source {self.source.op if self.source is not None else None}].'

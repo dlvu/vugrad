@@ -1,3 +1,5 @@
+from _context import vugrad
+
 import numpy as np
 
 # for running from the command line
