@@ -29,7 +29,7 @@ parser.add_argument('-l', '--learning-rate',
                 dest='lr',
                 help='The learning rate. That is, a scalar that determines the size of the steps taken by the '
                      'gradient descent algorithm. 0.1 works well for synth, 0.0001 works well for MNIST.',
-                default=0.1, type=float)
+                default=0.01, type=float)
 
 args = parser.parse_args()
 
@@ -105,7 +105,7 @@ for epoch in range(args.epochs):
         # Start the backpropagation
         loss.backward()
 
-        # apply gradient descent
+        # pply gradient descent
         for parm in mlp.parameters():
             parm.value -= args.lr * parm.grad
             # -- Note that we are directly manipulating the members of the parm TensorNode. This means that for this
