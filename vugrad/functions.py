@@ -1,5 +1,6 @@
-from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid
+from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid, RowMax, Expand, RowSum, Unsqueeze, Id
 from .mnist import init, load
+from .core import TensorNode
 
 import numpy as np
 import os
@@ -69,9 +70,6 @@ def celoss(outputs, targets):
     This could also be implemented as a Module (as it is in the pytorch tutorial), but that doesn't add much, since this
     part of our computation graph has no parameters to store.
 
-    NB: This implementation is numerically unstable. It's much better to let the model outptu logits, and
-        work with those. For our current purposes, however, this will do.
-
     :param outputs: Predictions from the model, a distribution over the classes
     :param targets: True class values, given as integers
     :return: A single loss value: the lower the value, the better the outputs match the targets.
@@ -79,13 +77,25 @@ def celoss(outputs, targets):
 
     logprobs = Log.do_forward(outputs)
 
+    return logceloss(logprobs, targets)
+
+def logceloss(logprobs, targets):
+    """
+    Implementation of the cross-entropy loss from logprobabilities
+
+    We separate this from the celoss, because computing the probabilities explicitly (as done there) is numerically
+    unstable. It's much more stable to compute the log-probabilities directly, using the log-softmax function.
+
+    :param outputs:
+    :param targets:
+    :return:
+    """
+
     # The log probability of the correct class, per instance
     per_instance = Select.do_forward(logprobs, indices=targets)
 
-    # the loss sums all these. The higher the better, so we return the negative of this.
-    return Sum.do_forward(per_instance) * -1.0
-
-    # -- To see how this loss derives from the entropy, consult the slides.
+    # The loss sums all these. The higher the better, so we return the negative of this.
+    return Sum.do_forward(per_instance) * - 1.0
 
 def sigmoid(x):
     """
@@ -100,9 +110,9 @@ def softmax(x):
     """
     Applies a row-wise softmax to a matrix
 
-    NB: Softmax is almost never computed like this in more serious settings. It's much better
-        to start from logits and use (a variant of) the logsumexp trick, returning
-        `log(softmax(x))`.
+    NB: Softmax is almost never computed like this in serious settings. It's much better
+        to start from logits and use the logsumexp trick, returning
+        `log(softmax(x))`. See the logsoftmax function below.
 
     :param x: A matrix.
     :return: A matrix of the same size as x, with normalized rows.
@@ -110,3 +120,39 @@ def softmax(x):
 
     return Normalize.do_forward(Exp.do_forward(x))
 
+def logsoftmax(x):
+    """
+    Computes the logarithm of the softmax.
+
+    This function uses the "log sum exp trick" to compute the logarithm of the softmax
+    in a numerically stable fashion.
+
+    Here is a good explanation: https://gregorygundersen.com/blog/2020/02/09/log-sum-exp/
+
+    :param x: A matrix.
+    :return: A matrix of the same size as x, with normalized rows.
+    """
+
+    # -- Max over the rows and expand back to the size of x
+
+    xcols = x.value.shape[1]
+
+    xmax = RowMax.do_forward(x)
+    xmax = Unsqueeze.do_forward(xmax, dim=1)
+    xmax = Expand.do_forward(xmax, repeats=xcols, dim=1)
+
+    assert(xmax.value.shape == x.value.shape), f'{xmax.value.shape=}    {x.value.shape=}'
+
+    diff = x - xmax
+
+    denominator = RowSum.do_forward( Exp.do_forward(diff) )
+    denominator = Log.do_forward(denominator)
+
+    denominator = Unsqueeze.do_forward(denominator, dim=1)
+    denominator = Expand.do_forward(denominator, repeats=xcols, dim=1)
+
+    assert(denominator.value.shape == x.value.shape), f'{denominator.value.shape=}    {x.value.shape=}'
+
+    res = diff - denominator
+
+    return res

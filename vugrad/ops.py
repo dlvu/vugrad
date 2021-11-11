@@ -1,4 +1,4 @@
-from .core import Op
+from .core import Op, TensorNode
 
 import numpy as np
 
@@ -27,6 +27,21 @@ class Log(Op):
         x = context['x']
 
         return go / x
+
+
+class Id(Op):
+    """
+    Identity operation (useful for debugging as it does add a new node to the graph)
+    """
+    @staticmethod
+    def forward(context, x):
+
+        return x
+
+    @staticmethod
+    def backward(context, go):
+
+        return go
 
 class Exp(Op):
     """
@@ -62,6 +77,53 @@ class Sum(Op):
 
         return np.full(shape=xsize, fill_value=go)
 
+class RowMax(Op):
+    """
+    Op that takes the row-wise maximum of a matrix, resulting in a vector
+    """
+
+    @staticmethod
+    def forward(context, x):
+
+        context['xshape'] = x.shape
+        context['idxs'] = np.argmax(x, axis=1) # -- indices of maximum elements
+
+        return np.amax(x, axis=1)
+
+    @staticmethod
+    def backward(context, go):
+        xs = context['xshape']
+        idxs = context['idxs']
+
+        # The gradient for the output is a zero matrix with the upstream gradients
+        # at the positions of the row-wise maxima of x
+        z = np.zeros(shape=xs)
+        z[np.arange(go.shape[0]), idxs] = go
+
+        return z
+
+class RowSum(Op):
+    """
+    Op that takes the row-wise sum of a matrix, resulting in a vector
+    """
+
+    @staticmethod
+    def forward(context, x):
+
+        context['xshape'] = x.shape
+
+        return np.sum(x, axis=1)
+
+    @staticmethod
+    def backward(context, go):
+        assert len(go.shape) == 1
+
+        xshape = context['xshape']
+        gx = np.broadcast_to(go.copy()[:, None], shape=xshape)
+        # gx = np.repeat(go[:, None], axis=1, repeats=xshape[1])
+
+        return gx
+
 class Normalize(Op):
     """
     Op that normalizes a matrix along the rows
@@ -70,6 +132,7 @@ class Normalize(Op):
     def forward(context, x):
 
         sumd = x.sum(axis=1, keepdims=True)
+
         context['x'], context['sumd'] = x, sumd
 
         return x / sumd
@@ -132,9 +195,9 @@ class Expand(Op):
 
     @staticmethod
     def forward(context, input, *, dim, repeats):
-        context['dim'] = dim
-
         assert input.shape[dim] == 1, 'Can only expand singleton dimensions'
+
+        context['dim'] = dim
 
         return np.repeat(input, repeats, axis=dim)
 
@@ -187,7 +250,7 @@ class Select(Op):
 
 class Squeeze(Op):
     """
-    Remove a specific singleton dimensions
+    Remove a specific singleton dimension
     """
 
     @staticmethod

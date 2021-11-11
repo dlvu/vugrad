@@ -4,7 +4,7 @@ import numpy as np
 This module contains the core components of the autodiff system: the two types of nodes that make up the computation graph
 (TensorNodes and OpNodes) and the class definition of an Op.
 
-The main algorithm of backpropagation is implementated recursively in the backward functions of the nodes.
+The main algorithm of backpropagation is implemented recursively in the backward functions of the nodes.
 """
 
 class TensorNode:
@@ -13,13 +13,15 @@ class TensorNode:
     the computational history
     """
 
-    def __init__(self, value : np.ndarray, source=None):
+    def __init__(self, value : np.ndarray, source=None, name=None):
         """
 
         :param value: A numpy array.
-        :param source: The opnode that created this tensor node. Leave this blank if you create a TensorNode manually.
+        :param source: The OpNode that created this TensorNode. Leave this blank if you create a TensorNode manually.
+        :param name: Optional string to help identify the node during debugging.
         """
 
+        self.name = name
         self.value = value   # the raw value that this node holds
         self.source = source # the OpNode that produced this Node
 
@@ -28,11 +30,18 @@ class TensorNode:
         # -- The gradient is defined as a tensor with the same dimensions as the value. At element `index` it contains
         #    the derivative of the loss with respect to the parameter `value[index]`.
 
+        self.debug = False
+
+        # These properties help to control the backward traversal.
+        self.numparents = 0 # the number of opnodes that this tensornode is input for
+        self.visits = 0     # number of times the node has been visited during backward
+
     def size(self, dim=None):
         """
         Return a tuple representing the dimensions of this tensor, or the specific size of one dimension.
-        :param dim: If None, return sizes of all dimensions. Otherwise, return the size of dimension ind
-        :return:
+
+        :param dim: If None, return sizes of all dimensions. Otherwise, return the size of the specified dimension
+        :return: A tuple reprsenting the sizes of all dimensions or a single integer represeting the side of one dimension.
         """
         if dim == None:
             return self.value.shape
@@ -42,6 +51,7 @@ class TensorNode:
     def zero_grad(self):
         """
         Set the gradient to zero for this node and any nodes below it.
+
         :return:
         """
 
@@ -52,9 +62,12 @@ class TensorNode:
 
     def clear(self):
         """
-        Disconnects the computation graph. We simply remove the connections between the Tensor nodes and the Op nodes.
+        Disconnects the computation graph and reset the state of the tensornode for another computation.
+
+        We simply remove the connections between the Tensor nodes and the Op nodes.
         By doing this, anything that is not referenced by anything else gets removed by the garbage collector. The nodes
         that represent parameters are still connected to their modules, so they won't be cleared.
+
         :return:
         """
 
@@ -62,31 +75,43 @@ class TensorNode:
             self.source.clear()
 
         self.source = None
+        self.visits = self.numparents = 0
 
     def backward(self, start=True):
         """
-        Start (or continue) the backpropagation from this node. This will fail if the node holds anything other than a scalar value.
-
-        :return:
+        Start (or continue) the backpropagation from this node. This will fail if the node holds anything other than a
+        scalar value.
         """
-        # print(f'Backward in TensorNode with shape {self.size()} and source op {None if self.source is None else self.source.op}.')
-
         if start:
             if  self.value.squeeze().shape != ():
                 raise Exception('backward() can only start from a scalar node.')
 
             self.grad = np.ones_like(self.value)
+            # -- the gradient of the loss node is 1, with the same shape as the loss node itself
 
-        # -- the gradient of the loss node is 1, with the same shape as the loss node itself
-        if self.source is not None:
-            self.source.backward()
+        self.visits += 1
+
+        # If we've been visited by all parents, move down the tree
+        if self.visits == self.numparents or start:
+            if self.source is not None:
+                self.source.backward()
+        else:
+            assert self.visits < self.numparents, f'{self.numparents=} {self.visits=} {self.name=}'
 
     ## For common ops, we add utility methods to the Node object
+    #  -- These "overload" the operators +, - and * so that we can
+    #     use these on tensornodes as we would on basic python integers and floats.
     def __add__(self, other):
         if type(other) == float:
             other = TensorNode(np.asarray(other))
 
         return Add.do_forward(self, other)
+
+    def __sub__(self, other):
+        if type(other) == float:
+            other = TensorNode(np.asarray(other))
+
+        return Sub.do_forward(self, other)
 
     def __mul__(self, other):
         if type(other) == float:
@@ -98,7 +123,8 @@ class TensorNode:
         return MatrixMultiply.do_forward(self, other)
 
     def __str__(self):
-        return f'TensorNode[size {self.size()}, source {self.source.op if self.source is not None else None}].'
+        n = self.name + ', ' if (self.name is not None) else ''
+        return f'TensorNode[{n}size {self.size()}, source {self.source.op if self.source is not None else None}].'
 
 class OpNode:
     """
@@ -115,15 +141,16 @@ class OpNode:
         self.inputs = inputs
 
         self.outputs = None
+        self.visits = 0
 
     def backward(self):
         """
-         Walk backwards down the graph to compute the gradients.
+        Walk backwards down the graph to compute the gradients.
 
-         Note that this should be a breadth-first walk. When we get to a particular op, we need to be sure that all its
-         outputs have already been visited.
-         """
-        # print(f'Backward of op {self.op}.')
+        Note that this should be a breadth-first walk. When we get to a particular op, we need to be sure that all its
+        outputs have already been visited. To this end, we only move down to the children of a node once we are sure
+        that it has been visited from all its parents.
+        """
 
         # extract the gradients over the outputs (these have been computed already)
         goutputs_raw = [output.grad for output in self.outputs]
@@ -136,6 +163,7 @@ class OpNode:
 
         # store the computed gradients in the input nodes
         for node, grad in zip(self.inputs, ginputs_raw):
+
             assert node.grad.shape == grad.shape, f'node shape is {node.size()} but grad shape is {grad.shape}'
 
             node.grad += grad
@@ -143,8 +171,13 @@ class OpNode:
             #    input to two ops, we are automatically implementing the multivariate chain rule. Every op adds its part
             #    of the gradient to the .grad part of its inputs.
 
-        for node in self.inputs:
-            node.backward(start=False)
+        self.visits += 1
+
+        # If we've been visited by all upstream nodes, backpropagate. If not, return, and let the parent nod deal with
+        # the rest of its children first.
+        if self.visits == len(self.outputs):
+            for node in self.inputs:
+                node.backward(start=False)
 
 
     def zero_grad(self):
@@ -159,6 +192,7 @@ class OpNode:
         """
         Disconnects this OpNode form the computation graph, so that it will be garbage collected when nothing refers to
         it.
+
         :return:
         """
 
@@ -197,6 +231,9 @@ class Op:
 
         assert all([type(input) == TensorNode for input in inputs]), 'All inputs to an Op should be TensorNodes.'
 
+        for input in inputs:
+            input.numparents += 1
+
         # extract the raw input values
         inputs_raw = [input.value for input in inputs]
 
@@ -232,8 +269,8 @@ class Op:
         """
         Compute the gradient of the loss over the inputs given the loss over the outputs
 
-        NB: note that backward does _not_ compute just the local derivative: it's the local
-        derivative times the upstream gradient.
+        NB: note that backward does _not_ compute just the local derivative. It's the derivative of the loss (the scalar
+        node on which backward() was called) with respect to every element of the input to the OpNode.
 
         :param goutputs: A tuple of gradients over the output nodes. Note that these are "unwrapped" raw numpy arrays.
         :param context: The context dictionary from the forward pass
@@ -290,6 +327,18 @@ class Add(Op):
     def backward(context, go):
         return go, go
 
+class Sub(Op):
+    """
+    Op for element-wise matrix subtraction: a - b
+    """
+    @staticmethod
+    def forward(context, a, b):
+        assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
+        return a - b
+
+    @staticmethod
+    def backward(context, go):
+        return go, - go
 
 class Multiply(Op):
     """
@@ -299,8 +348,7 @@ class Multiply(Op):
     def forward(context, a, b):
         assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
 
-        context['a'] = a
-        context['b'] = b
+        context['a'], context['b'] = a, b
 
         return a * b
 

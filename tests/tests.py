@@ -155,3 +155,90 @@ class TestUtil(unittest.TestCase):
     def test_mlp(self):
 
         fd_mlp()
+
+    def testmax(self):
+
+        x = np.asarray([[0., 1.],[4., 5.],[9, 0.]])
+
+        ctx = {}
+        vg.RowMax.forward(ctx, x)
+        grad = vg.RowMax.backward(ctx, np.asarray([.1, .2, .3]))
+
+        self.assertTrue( (np.asarray([[0.,  .1], [0., .2 ], [.3, 0. ]]) == grad ).all() )
+
+    def testsum(self):
+
+        x = np.asarray([[0., 1.],[4., 0.],[9, 0.]])
+
+        ctx = {}
+        vg.RowMax.forward(ctx, x)
+        grad = vg.RowSum.backward(ctx, np.arange(3.0) + 0.1)
+
+        self.assertTrue( (np.asarray([[0.1,  0.1], [1.1, 1.1], [2.1, 2.1]]) == grad ).all() )
+
+    def testlogsoftmax(self):
+
+        x = np.asarray([[0., 0.],[2., 0.],[3., 0.]])
+
+        x = vg.TensorNode(x)
+
+        s = np.exp(vg.logsoftmax(x).value).sum(axis=1)
+        self.assertTrue( ( (s - 1.0) ** 2. < 1e-10).all() )
+
+    def testlogsoftmax2(self):
+
+        x = np.random.randn(4, 5)
+        x = vg.TensorNode(x)
+
+        els = np.exp(vg.logsoftmax(x).value)
+        s = vg.softmax(x).value
+        self.assertTrue( ((els - s) ** 2. < 1e-7).all() )
+
+    def testdiamond(self):
+
+        a = vg.TensorNode(np.asarray([1.0]))
+        b = vg.Id.do_forward(a)
+        c1, c2 = vg.Id.do_forward(b), vg.Id.do_forward(b)
+        d = c1 + c2
+
+        a.name  = 'a'
+        b.name  = 'b'
+        c1.name = 'c1'
+        c2.name = 'c2'
+        d.name  = 'd'
+
+        # a.debug = True
+
+        d.backward()
+        self.assertEqual(2.0, float(a.grad))
+
+    def testdoublediamond(self):
+
+        a0 = vg.TensorNode(np.asarray([1.0]))
+        a = vg.Id.do_forward(a0)
+        b1, b2 = vg.Id.do_forward(a), vg.Id.do_forward(a)
+        c1, c2, c3, c4 = vg.Id.do_forward(b1), vg.Id.do_forward(b1), vg.Id.do_forward(b2), vg.Id.do_forward(b2)
+        d1 = c1 + c2
+        d2 = c3 + c4
+        e = d1 + d2
+
+        e.backward()
+        self.assertEqual(4.0, float(a.grad))
+
+    def testseqdiamond(self):
+
+        a = vg.TensorNode(np.asarray([1.0]))
+        b = vg.Id.do_forward(a)
+        c1, c2 = vg.Id.do_forward(b), vg.Id.do_forward(b)
+        d = c1 + c2
+        e = vg.Id.do_forward(d)
+        f = e + a
+        g1, g2 = vg.Id.do_forward(f), vg.Id.do_forward(f)
+        h = g1 + g2
+
+        h.backward()
+        self.assertEqual(2.0, float(f.grad))
+        self.assertEqual(2.0, float(e.grad))
+        self.assertEqual(2.0, float(c1.grad))
+        self.assertEqual(4.0, float(b.grad))
+        self.assertEqual(6.0, float(a.grad))
