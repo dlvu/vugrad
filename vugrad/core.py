@@ -96,7 +96,7 @@ class TensorNode:
             if self.source is not None:
                 self.source.backward()
         else:
-            assert self.visits < self.numparents, f'{self.numparents=} {self.visits=} {self.name=}'
+            assert self.visits < self.numparents, f'{self.numparents} {self.visits} {self.name}'
 
     ## For common ops, we add utility methods to the Node object
     #  -- These "overload" the operators +, - and * so that we can

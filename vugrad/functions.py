@@ -141,7 +141,7 @@ def logsoftmax(x):
     xmax = Unsqueeze.do_forward(xmax, dim=1)
     xmax = Expand.do_forward(xmax, repeats=xcols, dim=1)
 
-    assert(xmax.value.shape == x.value.shape), f'{xmax.value.shape=}    {x.value.shape=}'
+    assert(xmax.value.shape == x.value.shape), f'{xmax.value.shape}    {x.value.shape}'
 
     diff = x - xmax
 
@@ -151,7 +151,7 @@ def logsoftmax(x):
     denominator = Unsqueeze.do_forward(denominator, dim=1)
     denominator = Expand.do_forward(denominator, repeats=xcols, dim=1)
 
-    assert(denominator.value.shape == x.value.shape), f'{denominator.value.shape=}    {x.value.shape=}'
+    assert(denominator.value.shape == x.value.shape), f'{denominator.value.shape}    {x.value.shape}'
 
     res = diff - denominator
 
