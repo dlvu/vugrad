@@ -13,7 +13,7 @@ class Linear(Module):
 
         # weights of the matrix transformation
         glorot_std = 2.0 / (input_size + output_size) # scalar for Glorot init
-        w = np.random.randn(output_size, input_size) * glorot_std
+        w = np.random.randn(output_size, input_size) * np.sqrt(glorot_std)
         self.w = TensorNode(w)
 
         # weights of the bias (the translation)
