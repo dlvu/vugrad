@@ -6,7 +6,7 @@ This module contains the core components of the autodiff system: the two types o
 
 The main algorithm of backpropagation is implemented recursively in the backward functions of the nodes.
 """
-
+ 
 class TensorNode:
     """
     Represents a value node in the computation graph: a tensor value linked to its

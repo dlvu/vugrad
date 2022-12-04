@@ -1,4 +1,4 @@
-from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid, RowMax, Expand, RowSum, Unsqueeze, Id
+from .ops import Log, Select, Sum, Normalize, Exp, Sigmoid, RowMax, Expand, RowSum, Unsqueeze, Id,ReLU
 from .mnist import init, load
 from .core import TensorNode
 
@@ -156,3 +156,12 @@ def logsoftmax(x):
     res = diff - denominator
 
     return res
+
+def relu(x):
+    """
+    Wrap the relu op in a funciton (just for symmetry with the softmax and sigmoid).
+
+    :param x:
+    :return:
+    """
+    return ReLU.do_forward(x)    

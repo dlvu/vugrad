@@ -281,3 +281,19 @@ class Unsqueeze(Op):
         dim = context['dim']
 
         return goutput.squeeze(dim)
+
+class ReLU(Op):
+    """
+    Op for element-wise application of ReLU function
+    """
+
+    @staticmethod
+    def forward(context, input):
+        relux = input * (input > 0) 
+        context['relux'] = relux
+        return relux
+
+    @staticmethod
+    def backward(context, goutput):
+        relux = context['relux']
+        return goutput * (relux > 0)        
