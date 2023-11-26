@@ -29,7 +29,7 @@ def load_synth(num_train=60_000, num_val=10_000):
 
     # compute the quadratic form
     q = np.einsum('bf, fk, bk -> b', x, quad, x)
-    y = (q > THRESHOLD).astype(np.int)
+    y = (q > THRESHOLD).astype(int)
 
     return (x[:num_train, :], y[:num_train]), (x[num_train:, :], y[num_train:]), 2
 
