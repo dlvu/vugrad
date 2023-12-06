@@ -1,11 +1,11 @@
 import numpy as np
 
-"""
-This module contains the core components of the autodiff system: the two types of nodes that make up the computation graph
-(TensorNodes and OpNodes) and the class definition of an Op.
+"""This module contains the core components of the autodiff system: the two types of nodes that make up the 
+computation graph (TensorNodes and OpNodes) and the class definition of an Op.
 
 The main algorithm of backpropagation is implemented recursively in the backward functions of the nodes.
 """
+
 
 class TensorNode:
     """
@@ -13,7 +13,7 @@ class TensorNode:
     the computational history
     """
 
-    def __init__(self, value : np.ndarray, source=None, name=None):
+    def __init__(self, value: np.ndarray, source=None, name=None):
         """
 
         :param value: A numpy array.
@@ -22,10 +22,10 @@ class TensorNode:
         """
 
         self.name = name
-        self.value = value   # the raw value that this node holds
-        self.source = source # the OpNode that produced this Node
+        self.value = value  # the raw value that this node holds
+        self.source = source  # the OpNode that produced this Node
 
-        self.grad = np.zeros(shape=value.shape) # This is where we will put the gradient when we compute the loss
+        self.grad = np.zeros(shape=value.shape)  # This is where we will put the gradient when we compute the loss
 
         # -- The gradient is defined as a tensor with the same dimensions as the value. At element `index` it contains
         #    the derivative of the loss with respect to the parameter `value[index]`.
@@ -33,17 +33,18 @@ class TensorNode:
         self.debug = False
 
         # These properties help to control the backward traversal.
-        self.numparents = 0 # the number of opnodes that this tensornode is input for
-        self.visits = 0     # number of times the node has been visited during backward
+        self.numparents = 0  # the number of opnodes that this tensornode is input for
+        self.visits = 0  # number of times the node has been visited during backward
 
     def size(self, dim=None):
         """
         Return a tuple representing the dimensions of this tensor, or the specific size of one dimension.
 
         :param dim: If None, return sizes of all dimensions. Otherwise, return the size of the specified dimension
-        :return: A tuple reprsenting the sizes of all dimensions or a single integer represeting the side of one dimension.
+        :return: A tuple representing the sizes of all dimensions or a single integer representing the side of one
+        dimension.
         """
-        if dim == None:
+        if dim is None:
             return self.value.shape
 
         return self.value.shape[dim]
@@ -83,7 +84,7 @@ class TensorNode:
         scalar value.
         """
         if start:
-            if  self.value.squeeze().shape != ():
+            if self.value.squeeze().shape != ():
                 raise Exception('backward() can only start from a scalar node.')
 
             self.grad = np.ones_like(self.value)
@@ -98,23 +99,23 @@ class TensorNode:
         else:
             assert self.visits < self.numparents, f'{self.numparents} {self.visits} {self.name}'
 
-    ## For common ops, we add utility methods to the Node object
+    # For common ops, we add utility methods to the Node object
     #  -- These "overload" the operators +, - and * so that we can
     #     use these on tensornodes as we would on basic python integers and floats.
     def __add__(self, other):
-        if type(other) == float:
+        if other is float:
             other = TensorNode(np.asarray(other))
 
         return Add.do_forward(self, other)
 
     def __sub__(self, other):
-        if type(other) == float:
+        if other is float:
             other = TensorNode(np.asarray(other))
 
         return Sub.do_forward(self, other)
 
     def __mul__(self, other):
-        if type(other) == float:
+        if other is float:
             other = TensorNode(np.asarray(other))
 
         return Multiply.do_forward(self, other)
@@ -125,6 +126,7 @@ class TensorNode:
     def __str__(self):
         n = self.name + ', ' if (self.name is not None) else ''
         return f'TensorNode[{n}size {self.size()}, source {self.source.op if self.source is not None else None}].'
+
 
 class OpNode:
     """
@@ -158,12 +160,11 @@ class OpNode:
         # compute the gradients over the inputs
         ginputs_raw = self.op.backward(self.context, *goutputs_raw)
 
-        if not type(ginputs_raw) == tuple:
+        if not ginputs_raw is tuple:
             ginputs_raw = (ginputs_raw,)
 
         # store the computed gradients in the input nodes
         for node, grad in zip(self.inputs, ginputs_raw):
-
             assert node.grad.shape == grad.shape, f'node shape is {node.size()} but grad shape is {grad.shape}'
 
             node.grad += grad
@@ -178,7 +179,6 @@ class OpNode:
         if self.visits == len(self.outputs):
             for node in self.inputs:
                 node.backward(start=False)
-
 
     def zero_grad(self):
         """
@@ -202,7 +202,8 @@ class OpNode:
         self.inputs = None
         self.outputs = None
 
-        #-- The garbage collector should handle the rest.
+        # -- The garbage collector should handle the rest.
+
 
 class Op:
     """
@@ -222,14 +223,15 @@ class Op:
         This method takes care of all the graph construction and defers to forward() for the actual computation of the
         output tensor given the inputs.
 
-        :param inputs: The TreeNodes that serve as inputs to the op. All non-keyword arguments are taken as TreeNode
-                       inputs
-        :param kwargs: Any key word arguments are taken as non-TreeNode constants. For these, no gradient will be computed.
+        :param inputs: The TreeNodes that serve as inputs to the op.
+        All non-keyword arguments are taken as TreeNode inputs
+        :param kwargs: Any key word arguments are taken as non-TreeNode constants. For these, no gradient will
+        be computed.
         :return:
         """
         context = {}
 
-        assert all([type(input) == TensorNode for input in inputs]), 'All inputs to an Op should be TensorNodes.'
+        assert all([input is TensorNode for input in inputs]), 'All inputs to an Op should be TensorNodes.'
 
         for input in inputs:
             input.numparents += 1
@@ -240,8 +242,8 @@ class Op:
         # compute the raw output values
         outputs_raw = cls.forward(context, *inputs_raw, **kwargs)
 
-        if not type(outputs_raw) == tuple:
-            outputs_raw = (outputs_raw, )
+        if outputs_raw is not tuple:
+            outputs_raw = (outputs_raw,)
 
         opnode = OpNode(cls, context, inputs)
 
@@ -253,7 +255,7 @@ class Op:
         return outputs
 
     @staticmethod
-    def forward(context : dict, *inputs, **kawrgs):
+    def forward(context: dict, *inputs, **kwargs):
         """
         Compute the output given the inputs.
 
@@ -265,18 +267,19 @@ class Op:
         pass
 
     @staticmethod
-    def backward(context : dict, *goutput):
+    def backward(context: dict, *goutput):
         """
         Compute the gradient of the loss over the inputs given the loss over the outputs
 
         NB: note that backward does _not_ compute just the local derivative. It's the derivative of the loss (the scalar
         node on which backward() was called) with respect to every element of the input to the OpNode.
 
-        :param goutputs: A tuple of gradients over the output nodes. Note that these are "unwrapped" raw numpy arrays.
+        :param goutput: A tuple of gradients over the output nodes. Note that these are "unwrapped" raw numpy arrays.
         :param context: The context dictionary from the forward pass
         :return:
         """
         pass
+
 
 class Module:
     """
@@ -290,6 +293,7 @@ class Module:
     bunch of Ops which each have their own backward, so we can let the autodiff system take care of working
     out the backward.
     """
+
     def __init__(self):
         pass
 
@@ -311,13 +315,15 @@ class Module:
         """
         pass
 
-## The most basic Ops. These are defined here so we can make utility functions for them in the TensorNode class. The
+
+# The most basic Ops. These are defined here so we can make utility functions for them in the TensorNode class. The
 #  rest are defined in ops.py
 
 class Add(Op):
     """
     Op for element-wise matrix addition.
     """
+
     @staticmethod
     def forward(context, a, b):
         assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
@@ -327,10 +333,12 @@ class Add(Op):
     def backward(context, go):
         return go, go
 
+
 class Sub(Op):
     """
     Op for element-wise matrix subtraction: a - b
     """
+
     @staticmethod
     def forward(context, a, b):
         assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
@@ -340,10 +348,12 @@ class Sub(Op):
     def backward(context, go):
         return go, - go
 
+
 class Multiply(Op):
     """
     Op for element-wise matrix multiplication.
     """
+
     @staticmethod
     def forward(context, a, b):
         assert a.shape == b.shape, f'Arrays not the same sizes ({a.shape} {b.shape}).'
@@ -364,6 +374,7 @@ class MatrixMultiply(Op):
     """
     Op for matrix multiplication.
     """
+
     @staticmethod
     def forward(context, a, b):
         context['a'] = a

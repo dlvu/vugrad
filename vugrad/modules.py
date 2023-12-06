@@ -3,6 +3,7 @@ from .core import Module, TensorNode
 from .ops import *
 from .functions import *
 
+
 class Linear(Module):
     """
     A linear operation. Applies a matrix transformation and a vector translation.
@@ -12,7 +13,7 @@ class Linear(Module):
         super().__init__()
 
         # weights of the matrix transformation
-        glorot_std = np.sqrt(2.0 / (input_size + output_size)) # scalar for Glorot init
+        glorot_std = np.sqrt(2.0 / (input_size + output_size))  # scalar for Glorot init
         w = np.random.randn(output_size, input_size) * glorot_std
         self.w = TensorNode(w)
 
@@ -23,7 +24,6 @@ class Linear(Module):
         #    sometimes best to add a little noise to avoid dead neurons.
 
     def forward(self, input):
-
         outsize, insize = self.w.size()
         n, f = input.size()
 
@@ -39,7 +39,8 @@ class Linear(Module):
         # -- We are broadcasting the (1, outsize) vector b over the (n, outsize) matrix x. Numpy normally does this
         #    automatically, if we just do `x + self.b`, but we wouldn't get a gradient over that operation. Expand
         #    is a minimal broadcasting op that is sufficient for our purposes.
-        # -- In pytorch, full-featured broadcasting is implemented so there you would actually be able to do `x + self.b`.
+        # -- In pytorch, full-featured broadcasting is implemented so there
+        #    you would actually be able to do `x + self.b`.
 
         assert x.size() == exb.size()
 

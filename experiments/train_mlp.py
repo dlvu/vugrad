@@ -11,29 +11,33 @@ import vugrad as vg
 parser = ArgumentParser()
 
 parser.add_argument('-D', '--dataset',
-                dest='data',
-                help='Which dataset to use. [synth, mnist]',
-                default='synth', type=str)
+                    dest='data',
+                    help='Which dataset to use. [synth, mnist]',
+                    default='synth',
+                    type=str)
 
 parser.add_argument('-b', '--batch-size',
-                dest='batch_size',
-                help='The batch size (how many instances to use for a single forward/backward pass).',
-                default=128, type=int)
+                    dest='batch_size',
+                    help='The batch size (how many instances to use for a single forward/backward pass).',
+                    default=128,
+                    type=int)
 
 parser.add_argument('-e', '--epochs',
-                dest='epochs',
-                help='The number of epochs (complete passes over the complete training data).',
-                default=20, type=int)
+                    dest='epochs',
+                    help='The number of epochs (complete passes over the complete training data).',
+                    default=20,
+                    type=int)
 
 parser.add_argument('-l', '--learning-rate',
-                dest='lr',
-                help='The learning rate. That is, a scalar that determines the size of the steps taken by the '
-                     'gradient descent algorithm. 0.1 works well for synth, 0.0001 works well for MNIST.',
-                default=0.01, type=float)
+                    dest='lr',
+                    help='The learning rate. That is, a scalar that determines the size of the steps taken by the '
+                         'gradient descent algorithm. 0.1 works well for synth, 0.0001 works well for MNIST.',
+                    default=0.01,
+                    type=float)
 
 args = parser.parse_args()
 
-## Load the data
+# Load the data
 if args.data == 'synth':
     (xtrain, ytrain), (xval, yval), num_classes = vg.load_synth()
 elif args.data == 'mnist':
@@ -47,6 +51,7 @@ print(f' training class distribution: {np.bincount(ytrain)}')
 print(f'     val. class distribution: {np.bincount(yval)}')
 
 num_instances, num_features = xtrain.shape
+
 
 # Create a simple neural network.
 # This is a `Module` consisting of other modules representing linear layers, provided by the vugrad library.
@@ -74,7 +79,6 @@ class MLP(vg.Module):
         #    add them to our network.
 
     def forward(self, input):
-
         assert len(input.size()) == 2
 
         # first layer
@@ -82,7 +86,7 @@ class MLP(vg.Module):
 
         # non-linearity
         hidden = vg.sigmoid(hidden)
-        # -- We've called a utility function here, to mimin how this is usually done in pytorch. We could also do:
+        # -- We've called a utility function here, to mimic how this is usually done in pytorch. We could also do:
         #    hidden = Sigmoid.do_forward(hidden)
 
         # second layer
@@ -90,17 +94,18 @@ class MLP(vg.Module):
 
         # softmax activation
         output = vg.logsoftmax(output)
-        # -- the logsoftmax computes the _logarithm_ of the probabilities produced by softmax. This makes the computation
-        #    of the CE loss more stable when the probabilities get close to 0 (remember that the CE loss is the logarithm
-        #    of these probabilities). It needs to be implemented in a specific way. See the source for details.
+        # -- the logsoftmax computes the _logarithm_ of the probabilities produced by softmax. This makes the
+        # computation of the CE loss more stable when the probabilities get close to 0 (remember that the CE loss is
+        # the logarithm of these probabilities). It needs to be implemented in a specific way. See the source for
+        # details.
 
         return output
 
     def parameters(self):
-
         return self.layer1.parameters() + self.layer2.parameters()
 
-## Instantiate the model
+
+# Instantiate the model
 mlp = MLP(input_size=num_features, output_size=num_classes)
 
 n, m = xtrain.shape
@@ -111,7 +116,7 @@ for epoch in range(args.epochs):
 
     print(f'epoch {epoch:03}')
 
-    ## Compute validation accuracy
+    # Compute validation accuracy
     o = mlp(vg.TensorNode(xval))
     oval = o.value
 
@@ -119,10 +124,10 @@ for epoch in range(args.epochs):
     num_correct = (predictions == yval).sum()
     acc = num_correct / yval.shape[0]
 
-    o.clear() # gc the computation graph
+    o.clear()  # gc the computation graph
     print(f'       accuracy: {acc:.4}')
 
-    cl = 0.0 # running sum of the training loss
+    cl = 0.0  # running sum of the training loss
 
     # We loop over the data in batches of size `b`
     for fr in range(0, n, b):
@@ -138,12 +143,14 @@ for epoch in range(args.epochs):
 
         outputs = mlp(batch)
         loss = vg.logceloss(outputs, targets)
-        # -- The computation graph is now complete. It consists of the MLP, together with the computation of
-        #    the scalar loss.
-        # -- The variable `loss` is the TensorNode at the very top of our computation graph. This means we can call
-        #    it to perform operations on the computation graph, like clearing the gradients, starting the backpropgation
-        #    and clearing the graph.
-        # -- Note that we set the MLP up to produce log probabilties, so we should compute the CE loss for these.
+        # -- The computation graph is now complete. It consists of the MLP, together with the computation of the
+        # scalar loss.
+        #
+        # -- The variable `loss` is the TensorNode at the very top of our computation graph. This means
+        # we can call it to perform operations on the computation graph, like clearing the gradients, starting the
+        # backpropagation and clearing the graph.
+        # -- Note that we set the MLP up to produce log probabilities,
+        # so we should compute the CE loss for these.
 
         cl += loss.value
         # -- We must be careful here to extract the _raw_ value for the running loss. What would happen if we kept
@@ -158,12 +165,12 @@ for epoch in range(args.epochs):
             # -- Note that we are directly manipulating the members of the parm TensorNode. This means that for this
             #    part, we are not building up a computation graph.
 
-        # -- In Pytorch, the gradient descent is abstracted away into an Optimizer. This allows us to build slightly more
-        #    complexoptimizers than plain graident descent.
+        # -- In Pytorch, the gradient descent is abstracted away into an Optimizer. This allows us to build slightly
+        # more complex optimizers than plain gradient descent.
 
         # Finally, we need to reset the gradients to zero ...
         loss.zero_grad()
         # ... and delete the parts of the computation graph we don't need to remember.
         loss.clear()
 
-    print(f'   running loss: {cl/n:.4}')
+    print(f'   running loss: {cl / n:.4}')
