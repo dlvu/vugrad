@@ -12,6 +12,7 @@ This is mostly a collection of test code at the moment, rather than a proper sui
 
 """
 
+
 def fd_mlp():
     """
     Test the framework by computing finite differences approximation to the gradient for a random parameter
@@ -51,6 +52,7 @@ def fd_mlp():
     print(f'finite differences: {fd_deriv:.3}')
     print(f'          backprop: {bp_deriv:.3}')
 
+
 def finite_differences(function, input='eye'):
     """
     Test the framework by computing finite differences approximation to the gradient.
@@ -61,7 +63,7 @@ def finite_differences(function, input='eye'):
 
     N = 5
 
-    if type(input) == str:
+    if input is str:
         if input == 'eye':
             inp = vg.TensorNode(np.eye(N))
         elif input == 'rand':
@@ -74,8 +76,7 @@ def finite_differences(function, input='eye'):
     N, M = inp.size()
 
     for i in range(N):
-        for j in range (M):
-
+        for j in range(M):
             eps = max(1.5e-8 * inp.value[i, j], 10e-12)
             # -- This is supposedly a good epsilon value to use.
 
@@ -100,6 +101,7 @@ def finite_differences(function, input='eye'):
             loss0.clear()
             loss1.clear()
 
+
 class TestUtil(unittest.TestCase):
     """
 
@@ -111,8 +113,7 @@ class TestUtil(unittest.TestCase):
         :return:
         """
 
-        finite_differences(lambda x : vg.Sum.do_forward(x))
-
+        finite_differences(lambda x: vg.Sum.do_forward(x))
 
     def test_fd1(self):
         """
@@ -120,7 +121,7 @@ class TestUtil(unittest.TestCase):
         :return:
         """
 
-        finite_differences(lambda x : vg.Sum.do_forward(vg.Sigmoid.do_forward(x)), input='rand')
+        finite_differences(lambda x: vg.Sum.do_forward(vg.Sigmoid.do_forward(x)), input='rand')
 
     def test_fd2(self):
         """
@@ -129,18 +130,18 @@ class TestUtil(unittest.TestCase):
         """
 
         finite_differences(input='rand', function=lambda x:
-            vg.Sum.do_forward(
-                vg.Sigmoid.do_forward(
-                    vg.MatrixMultiply.do_forward(x, x)
-                )))
+        vg.Sum.do_forward(
+            vg.Sigmoid.do_forward(
+                vg.MatrixMultiply.do_forward(x, x)
+            )))
 
     def test_fd3(self):
         """
         Test the backprop using finite differences
         :return:
         """
-        def fn(x):
 
+        def fn(x):
             x = vg.Exp.do_forward(x)
             x = vg.Normalize.do_forward(x)
 
@@ -153,59 +154,53 @@ class TestUtil(unittest.TestCase):
             function=fn)
 
     def test_mlp(self):
-
         fd_mlp()
 
     def testmax(self):
-
-        x = np.asarray([[0., 1.],[4., 5.],[9, 0.]])
+        x = np.asarray([[0., 1.], [4., 5.], [9, 0.]])
 
         ctx = {}
         vg.RowMax.forward(ctx, x)
         grad = vg.RowMax.backward(ctx, np.asarray([.1, .2, .3]))
 
-        self.assertTrue( (np.asarray([[0.,  .1], [0., .2 ], [.3, 0. ]]) == grad ).all() )
+        self.assertTrue((np.asarray([[0., .1], [0., .2], [.3, 0.]]) == grad).all())
 
     def testsum(self):
-
-        x = np.asarray([[0., 1.],[4., 0.],[9, 0.]])
+        x = np.asarray([[0., 1.], [4., 0.], [9, 0.]])
 
         ctx = {}
         vg.RowMax.forward(ctx, x)
         grad = vg.RowSum.backward(ctx, np.arange(3.0) + 0.1)
 
-        self.assertTrue( (np.asarray([[0.1,  0.1], [1.1, 1.1], [2.1, 2.1]]) == grad ).all() )
+        self.assertTrue((np.asarray([[0.1, 0.1], [1.1, 1.1], [2.1, 2.1]]) == grad).all())
 
     def testlogsoftmax(self):
-
-        x = np.asarray([[0., 0.],[2., 0.],[3., 0.]])
+        x = np.asarray([[0., 0.], [2., 0.], [3., 0.]])
 
         x = vg.TensorNode(x)
 
         s = np.exp(vg.logsoftmax(x).value).sum(axis=1)
-        self.assertTrue( ( (s - 1.0) ** 2. < 1e-10).all() )
+        self.assertTrue(((s - 1.0) ** 2. < 1e-10).all())
 
     def testlogsoftmax2(self):
-
         x = np.random.randn(4, 5)
         x = vg.TensorNode(x)
 
         els = np.exp(vg.logsoftmax(x).value)
         s = vg.softmax(x).value
-        self.assertTrue( ((els - s) ** 2. < 1e-7).all() )
+        self.assertTrue(((els - s) ** 2. < 1e-7).all())
 
     def testdiamond(self):
-
         a = vg.TensorNode(np.asarray([1.0]))
         b = vg.Id.do_forward(a)
         c1, c2 = vg.Id.do_forward(b), vg.Id.do_forward(b)
         d = c1 + c2
 
-        a.name  = 'a'
-        b.name  = 'b'
+        a.name = 'a'
+        b.name = 'b'
         c1.name = 'c1'
         c2.name = 'c2'
-        d.name  = 'd'
+        d.name = 'd'
 
         # a.debug = True
 
@@ -213,7 +208,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(2.0, float(a.grad))
 
     def testdoublediamond(self):
-
         a0 = vg.TensorNode(np.asarray([1.0]))
         a = vg.Id.do_forward(a0)
         b1, b2 = vg.Id.do_forward(a), vg.Id.do_forward(a)
@@ -226,7 +220,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(4.0, float(a.grad))
 
     def testseqdiamond(self):
-
         a = vg.TensorNode(np.asarray([1.0]))
         b = vg.Id.do_forward(a)
         c1, c2 = vg.Id.do_forward(b), vg.Id.do_forward(b)
